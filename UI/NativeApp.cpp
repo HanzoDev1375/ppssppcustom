@@ -465,13 +465,8 @@ void NativeInit(int argc, const char *argv[], const CommandLineOptions &cmdLineO
 	// In Android 12 with scoped storage, due to the above, the external directory
 	// is no longer the plain root of external storage, but it's an app specific directory
 	// on external storage (g_extFilesDir).
-	if (System_GetPropertyBool(SYSPROP_ANDROID_SCOPED_STORAGE)) {
-		// There's no sensible default directory. Let the user browse for files.
-		g_Config.defaultCurrentDirectory.clear();
-	} else {
-		g_Config.memStickDirectory = Path(external_dir);
-		g_Config.defaultCurrentDirectory = Path(external_dir);
-	}
+	g_Config.memStickDirectory = Path(external_dir);
+	g_Config.defaultCurrentDirectory = Path(external_dir);
 
 	// Might also add an option to move it to internal / non-visible storage, but there's
 	// little point, really.
@@ -634,19 +629,7 @@ void NativeInit(int argc, const char *argv[], const CommandLineOptions &cmdLineO
 
 		bool okToLoad = true;
 		bool okToCheck = true;
-		if (System_GetPropertyBool(SYSPROP_SUPPORTS_PERMISSIONS)) {
-			PermissionStatus status = System_GetPermissionStatus(SYSTEM_PERMISSION_STORAGE);
-			if (status == PERMISSION_STATUS_DENIED) {
-				ERROR_LOG(Log::IO, "Storage permission denied. Launching without argument.");
-				okToLoad = false;
-				okToCheck = false;
-			} else if (status != PERMISSION_STATUS_GRANTED) {
-				ERROR_LOG(Log::IO, "Storage permission not granted. Launching without argument check.");
-				okToCheck = false;
-			} else {
-				INFO_LOG(Log::IO, "Storage permission granted.");
-			}
-		}
+		
 		if (okToLoad) {
 			// Handle file:/// URIs, since you get those when creating shortcuts on some Android systems.
 			if (startsWith(bootFilename, "file:///")) {
@@ -700,11 +683,7 @@ void NativeInit(int argc, const char *argv[], const CommandLineOptions &cmdLineO
 	g_logManager.EnableOutput(LogOutput::Printf);
 #endif
 
-	if (System_GetPropertyBool(SYSPROP_SUPPORTS_PERMISSIONS)) {
-		if (System_GetPermissionStatus(SYSTEM_PERMISSION_STORAGE) != PERMISSION_STATUS_GRANTED) {
-			System_AskForPermission(SYSTEM_PERMISSION_STORAGE);
-		}
-	}
+	
 
 	g_BackgroundAudio.SFX().Init();
 
