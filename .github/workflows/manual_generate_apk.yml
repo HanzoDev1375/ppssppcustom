@@ -3,9 +3,10 @@ on:
   push:
     branches:
     - master
+    tags:                 # <-- اضافه شد: با زدن تگ v*.* اجرا میشه
+      - "v*.*"
   workflow_dispatch:
     inputs:
-
       buildVariant:
         type: choice
         description: 'Build Variant'
@@ -19,7 +20,6 @@ on:
         - LegacyOptimized
 
 jobs:
-
   apk:
     name: Generate ${{ github.event.inputs.buildVariant || 'NormalOptimized' }} APK
     runs-on: ubuntu-latest
@@ -67,8 +67,16 @@ jobs:
             cp android/build/*/apk/*/*/*.apk ppsspp/
           fi
 
-      - name: Upload artifact
+      - name: Upload artifact (for Actions download)
         uses: actions/upload-artifact@v7
         with:
           name: android-${{ github.event.inputs.buildVariant || 'NormalOptimized' }} build
           path: ppsspp/
+
+      # ===== مرحله جدید برای آپلود در Releases =====
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v3.0.2
+        if: github.ref_type == 'tag'   # فقط وقتی که یک تگ جدید زده شود اجرا می‌شود
+        with:
+          files: ppsspp/*.apk
+          token: ${{ secrets.GITHUB_TOKEN }}
