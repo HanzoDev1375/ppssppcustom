@@ -3,7 +3,7 @@ on:
   push:
     branches:
     - master
-    tags:                 # <-- اضافه شد: با زدن تگ v*.* اجرا میشه
+    tags:
       - "v*.*"
   workflow_dispatch:
     inputs:
@@ -49,34 +49,33 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Test androidGitVersion
-        working-directory: android
+      - name: Extract version from git
+        id: version
         run: |
-          echo "count=${{steps.valid-tags.outputs.count}}"
-          gradle --quiet androidGitVersion
+          VERSION_NAME=$(git describe --always --tags --dirty)
+          VERSION_CODE=$(git rev-list --count HEAD)
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Version: $VERSION_NAME (code $VERSION_CODE)"
 
       - name: Assemble APK
         working-directory: android
-        run: ./gradlew assemble${{ github.event.inputs.buildVariant || 'NormalOptimized' }} --stacktrace
+        run: |
+          ./gradlew assemble${{ github.event.inputs.buildVariant || 'NormalOptimized' }} \
+            -PversionName=${{ env.VERSION_NAME }} \
+            -PversionCode=${{ env.VERSION_CODE }} \
+            --stacktrace
 
       - name: Package build
         run: |
           find . -name "*.apk"
-          mkdir ppsspp
+          mkdir -p ppsspp
           if [ -e android/build/*/apk/*/*/*.apk ]; then
             cp android/build/*/apk/*/*/*.apk ppsspp/
           fi
 
-      - name: Upload artifact (for Actions download)
+      - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: android-${{ github.event.inputs.buildVariant || 'NormalOptimized' }} build
           path: ppsspp/
-
-      # ===== مرحله جدید برای آپلود در Releases =====
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v3.0.2
-        if: github.ref_type == 'tag'   # فقط وقتی که یک تگ جدید زده شود اجرا می‌شود
-        with:
-          files: ppsspp/*.apk
-          token: ${{ secrets.GITHUB_TOKEN }}
